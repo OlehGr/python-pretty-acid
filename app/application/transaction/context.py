@@ -45,11 +45,10 @@ class _BaseSessionContext:
         if not self._is_root:
             return
 
-        assert self._session is not None
-        assert self._ctx_token is not None
-
-        await self._session.close()
-        _current_session.reset(self._ctx_token)
+        if self._session:
+            await self._session.close()
+        if self._ctx_token:
+            _current_session.reset(self._ctx_token)
 
 
 class TransactionContext(_BaseSessionContext):

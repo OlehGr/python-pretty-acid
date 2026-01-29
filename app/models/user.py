@@ -13,8 +13,8 @@ class User(BaseModel):
     def create(cls, *, name: str) -> "User":
         return User(**cls.gen_base_properties(), name=name, posts_count=0)
 
-    def update_posts_count(self, count: int) -> None:
-        self.posts_count = count
+    def increament_posts_count(self) -> None:
+        self.posts_count += 1
         self._on_update()
 
     def _on_update(self) -> None:

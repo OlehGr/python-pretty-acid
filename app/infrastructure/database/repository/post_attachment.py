@@ -13,7 +13,3 @@ class PostAttachmentRepository(IPostAttachmentRepository):
         async with self._tm.transaction() as tx:
             for post_attachment in post_attachments:
                 await tx.merge(post_attachment)
-
-    async def save(self, user: PostAttachment) -> None:
-        async with self._tm.transaction() as tx:
-            await tx.merge(user)
