@@ -3,7 +3,11 @@ import asyncio
 import pytest
 from dishka import make_container
 
-from app.application.transaction import TransactionalSessionFactory, TransactionManager
+from app.application.transaction import (
+    TransactionalSession,
+    TransactionalSessionFactory,
+    TransactionManager,
+)
 from app.models import User
 from app.providers import DatabaseProvider
 
@@ -65,6 +69,35 @@ class TestTransactionManagerUnit:
             async with tm.transaction() as t4:
                 assert t1 is t4
                 assert t4.in_transaction()
+
+    async def test_nested_transaction_sharing_in_separate_func_calls(
+        self, tm: TransactionManager
+    ):
+        """
+        Вложенные контексты при вызове внутри других функций должны использовать
+        сессию контекста, открытого в коде, который вызвал эти функции.
+        """
+
+        async def sub_method_with_transaction(
+            manager: TransactionManager, parent_session: TransactionalSession
+        ):
+            async with manager.transaction() as tx:
+                assert tx is parent_session
+
+        async def sub_method_with_session(
+            manager: TransactionManager, parent_session: TransactionalSession
+        ):
+            async with manager.session() as s:
+                assert s is parent_session
+
+        async def super_parent_method(
+            manager: TransactionManager, parent_session: TransactionalSession
+        ):
+            await sub_method_with_transaction(manager, parent_session)
+            await sub_method_with_session(manager, parent_session)
+
+        async with tm.transaction() as tx:
+            await super_parent_method(tm, tx)
 
     async def test_root_transaction_commit_persists(self, tm: TransactionManager):
         """
@@ -223,5 +256,3 @@ class TestTransactionManagerUnit:
 
         await asyncio.gather(worker(), worker())
         assert sessions[0] is not sessions[1]
-
-    # TODO: Написать тест под работу nested транзакций при вызове в подметодах
