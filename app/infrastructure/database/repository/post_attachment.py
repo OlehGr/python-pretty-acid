@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from app.application.interfaces.repository import IPostAttachmentRepository
-from app.application.transaction.manager import TransactionManager
+from app.infrastructure.database.transaction import TransactionManager
 from app.models import PostAttachment
 
 

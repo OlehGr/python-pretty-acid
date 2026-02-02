@@ -1,19 +1,25 @@
-from dishka import Provider, Scope, provide
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from dishka import Provider, Scope, alias, provide
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.application.interfaces.repository import (
     IPostAttachmentRepository,
     IPostRepository,
 )
+from app.application.interfaces.transaction import ITransactionManager
 from app.application.services.post import PostService
 from app.application.services.post_attachment import PostattachmentService
 from app.application.services.user import UserService
-from app.application.transaction import TransactionalSessionFactory
 from app.config import DATABASE_URL
 from app.infrastructure.database.repository.post import PostRepository
 from app.infrastructure.database.repository.post_attachment import (
     PostAttachmentRepository,
 )
+from app.infrastructure.database.transaction import TransactionManager
 
 
 class DatabaseProvider(Provider):
@@ -27,13 +33,15 @@ class DatabaseProvider(Provider):
         return engine
 
     @provide
-    def session_factory(self, engine: AsyncEngine) -> TransactionalSessionFactory:
+    def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return async_sessionmaker(bind=engine, expire_on_commit=True, autoflush=False)
 
 
 class InfrastructureProvider(Provider):
     scope = Scope.APP
 
+    transaction_manager_impl = provide(TransactionManager)
+    transaction_manager = alias(source=TransactionManager, provides=ITransactionManager)
     post_repository = provide(PostRepository, provides=IPostRepository)
     post_attachment_repository = provide(
         PostAttachmentRepository, provides=IPostAttachmentRepository

@@ -2,12 +2,9 @@ import asyncio
 
 import pytest
 from dishka import make_container
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.application.transaction import (
-    TransactionalSession,
-    TransactionalSessionFactory,
-    TransactionManager,
-)
+from app.infrastructure.database.transaction import TransactionManager
 from app.models import User
 from app.providers import DatabaseProvider
 
@@ -23,12 +20,12 @@ def di_container():
 
 @pytest.fixture
 def tm(di_container):
-    yield TransactionManager(di_container.get(TransactionalSessionFactory))
+    return TransactionManager(di_container.get(async_sessionmaker[AsyncSession]))
 
 
 @pytest.fixture
 def session_factory(di_container):
-    return di_container.get(TransactionalSessionFactory)
+    return di_container.get(async_sessionmaker[AsyncSession])
 
 
 class TestTransactionManagerUnit:
@@ -79,19 +76,19 @@ class TestTransactionManagerUnit:
         """
 
         async def sub_method_with_transaction(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager, parent_session: AsyncSession
         ):
             async with manager.transaction() as tx:
                 assert tx is parent_session
 
         async def sub_method_with_session(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager, parent_session: AsyncSession
         ):
             async with manager.session() as s:
                 assert s is parent_session
 
         async def super_parent_method(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager, parent_session: AsyncSession
         ):
             await sub_method_with_transaction(manager, parent_session)
             await sub_method_with_session(manager, parent_session)

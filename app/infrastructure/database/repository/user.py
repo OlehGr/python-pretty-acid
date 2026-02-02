@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 
 from app.application.interfaces.repository import IUserRepository
-from app.application.transaction.manager import TransactionManager
+from app.infrastructure.database.transaction import TransactionManager
 from app.models import User
 
 

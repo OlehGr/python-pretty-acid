@@ -5,13 +5,13 @@ from app.application.interfaces.repository import (
     IPostAttachmentRepository,
     IPostRepository,
 )
-from app.application.transaction.manager import TransactionManager
+from app.application.interfaces.transaction import ITransactionManager
 from app.models import PostAttachment
 
 
 @dataclass
 class PostattachmentService:
-    _tm: TransactionManager
+    _tm: ITransactionManager
     _post_attachment_repository: IPostAttachmentRepository
     _post_repository: IPostRepository
 
@@ -27,5 +27,6 @@ class PostattachmentService:
 
             post = await self._post_repository.get_by_id(post_id)
             post.update_attachments_count(len(post_attachments))
+            await self._post_repository.save(post)
 
             return [post_attachment.id for post_attachment in post_attachments]
