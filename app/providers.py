@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from app.application.interfaces.repository import (
     IPostAttachmentRepository,
     IPostRepository,
+    IUserRepository,
 )
 from app.application.interfaces.transaction import ITransactionManager
 from app.application.services.post import PostService
@@ -19,6 +20,7 @@ from app.infrastructure.database.repository.post import PostRepository
 from app.infrastructure.database.repository.post_attachment import (
     PostAttachmentRepository,
 )
+from app.infrastructure.database.repository.user import UserRepository
 from app.infrastructure.database.transaction import TransactionManager
 
 
@@ -42,6 +44,8 @@ class InfrastructureProvider(Provider):
 
     transaction_manager_impl = provide(TransactionManager)
     transaction_manager = alias(source=TransactionManager, provides=ITransactionManager)
+
+    user_repository = provide(UserRepository, provides=IUserRepository)
     post_repository = provide(PostRepository, provides=IPostRepository)
     post_attachment_repository = provide(
         PostAttachmentRepository, provides=IPostAttachmentRepository
