@@ -1,7 +1,6 @@
 from dishka import Provider, Scope, alias, provide
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
@@ -21,7 +20,11 @@ from app.infrastructure.database.repository.post_attachment import (
     PostAttachmentRepository,
 )
 from app.infrastructure.database.repository.user import UserRepository
-from app.infrastructure.database.transaction import TransactionManager
+from app.infrastructure.database.transaction import (
+    TransactionalSession,
+    TransactionalSessionFactory,
+    TransactionManager,
+)
 
 
 class DatabaseProvider(Provider):
@@ -35,8 +38,13 @@ class DatabaseProvider(Provider):
         return engine
 
     @provide
-    def session_factory(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-        return async_sessionmaker(bind=engine, expire_on_commit=True, autoflush=False)
+    def session_factory(self, engine: AsyncEngine) -> TransactionalSessionFactory:
+        return async_sessionmaker(
+            bind=engine,
+            class_=TransactionalSession,
+            expire_on_commit=True,
+            autoflush=False,
+        )
 
 
 class InfrastructureProvider(Provider):

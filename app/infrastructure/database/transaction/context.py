@@ -1,18 +1,21 @@
 from contextvars import ContextVar, Token
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from app.infrastructure.database.transaction.session import (
+    TransactionalSession,
+    TransactionalSessionFactory,
+)
 
-_current_session: ContextVar[AsyncSession | None] = ContextVar(
+_current_session: ContextVar[TransactionalSession | None] = ContextVar(
     "current_session", default=None
 )
 
 
 class _BaseSessionContext:
-    _session_factory: async_sessionmaker[AsyncSession]
-    _session: AsyncSession | None
-    _ctx_token: Token[AsyncSession | None] | None
+    _session_factory: TransactionalSessionFactory
+    _session: TransactionalSession | None
+    _ctx_token: Token[TransactionalSession | None] | None
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(self, session_factory: TransactionalSessionFactory) -> None:
         self._session_factory = session_factory
         self._session = None
         self._ctx_token = None
@@ -21,7 +24,7 @@ class _BaseSessionContext:
     def _is_root(self) -> bool:
         return self._session is not None
 
-    async def _get_or_create_session(self) -> AsyncSession:
+    async def _get_or_create_session(self) -> TransactionalSession:
         existing = _current_session.get()
         if existing is not None:
             return existing
@@ -49,7 +52,7 @@ class _BaseSessionContext:
 
 
 class TransactionContext(_BaseSessionContext):
-    async def __aenter__(self) -> AsyncSession:
+    async def __aenter__(self) -> TransactionalSession:
         session = await self._get_or_create_session()
         if self._is_root:
             await session.begin()
@@ -71,7 +74,7 @@ class TransactionContext(_BaseSessionContext):
 
 
 class SessionContext(_BaseSessionContext):
-    async def __aenter__(self) -> AsyncSession:
+    async def __aenter__(self) -> TransactionalSession:
         return await self._get_or_create_session()
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:

@@ -1,12 +1,14 @@
 import pytest
 from dishka import Container, make_container
 from sqlalchemy import func, select, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.application.services.post import PostService
 from app.application.services.user import UserService
 from app.config import DB_NAME
-from app.infrastructure.database.transaction import TransactionManager
+from app.infrastructure.database.transaction import (
+    TransactionalSessionFactory,
+    TransactionManager,
+)
 from app.models import Post, PostAttachment, User
 from app.providers import ApplicationProvider, DatabaseProvider, InfrastructureProvider
 
@@ -107,7 +109,7 @@ class TestApplication:
         await self._assert_no_stuck_transactions(di)
 
     async def _assert_no_stuck_transactions(self, di: Container):
-        session_maker = di.get(async_sessionmaker[AsyncSession])
+        session_maker = di.get(TransactionalSessionFactory)
         async with session_maker() as s:
             stuck_tx_count = await s.scalar(
                 text(f"""

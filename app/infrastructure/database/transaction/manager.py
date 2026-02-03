@@ -1,14 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app.application.interfaces.transaction import ITransactionManager
+from app.infrastructure.database.transaction.session import TransactionalSessionFactory
 
 from .context import SessionContext, TransactionContext
 
 
 class TransactionManager(ITransactionManager):
-    _session_factory: async_sessionmaker[AsyncSession]
+    _session_factory: TransactionalSessionFactory
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(self, session_factory: TransactionalSessionFactory) -> None:
         self._session_factory = session_factory
 
     def transaction(self) -> TransactionContext:
