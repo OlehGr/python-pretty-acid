@@ -252,7 +252,7 @@ class TestTransactionManagerUnit:
             async with tm.transaction() as s:
                 async with tm.transaction() as s:
                     sessions.append(s)
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.1)
 
         await asyncio.gather(worker(), worker())
         assert sessions[0] is not sessions[1]
