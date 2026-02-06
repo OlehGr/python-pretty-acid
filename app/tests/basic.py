@@ -3,6 +3,7 @@ import asyncio
 import pytest
 from dishka import make_container
 
+from app.infrastructure.common import BackgroundExecutor
 from app.infrastructure.database.transaction import (
     TransactionalSession,
     TransactionalSessionFactory,
@@ -22,12 +23,17 @@ def di_container():
 
 
 @pytest.fixture
-def tm(di_container):
+def tm(di_container) -> TransactionManager:
     return TransactionManager(di_container.get(TransactionalSessionFactory))
 
 
 @pytest.fixture
-def session_factory(di_container):
+def background_executor() -> BackgroundExecutor:
+    return BackgroundExecutor()
+
+
+@pytest.fixture
+def session_factory(di_container) -> TransactionalSessionFactory:
     return di_container.get(TransactionalSessionFactory)
 
 
@@ -255,4 +261,27 @@ class TestTransactionManagerUnit:
                     await asyncio.sleep(0.1)
 
         await asyncio.gather(worker(), worker())
+        assert sessions[0] is not sessions[1]
+
+    async def test_sub_create_tasks_do_not_share_session(
+        self, tm: TransactionManager, background_executor: BackgroundExecutor
+    ):
+        """
+        При создание дочерней async task (loop.create_task) и открытия в ней сессии  TransactionManager-а
+        сессия не должна шарится между родительской и дочерней задачами
+        """
+        sessions = []
+
+        async def another_db_task():
+            bob = User.create(name="Fantom Bob")
+
+            async with tm.transaction() as s:
+                await s.merge(bob)
+                sessions.append(s)
+
+        async with tm.transaction() as s:
+            sessions.append(s)
+            background_executor.submit(another_db_task())
+            await asyncio.sleep(0.1)
+
         assert sessions[0] is not sessions[1]

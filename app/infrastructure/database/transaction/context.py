@@ -1,54 +1,74 @@
-from contextvars import ContextVar, Token
+import asyncio
+from weakref import WeakKeyDictionary
 
 from app.infrastructure.database.transaction.session import (
     TransactionalSession,
     TransactionalSessionFactory,
 )
 
-_current_session: ContextVar[TransactionalSession | None] = ContextVar(
-    "current_session", default=None
+_task_sessions: WeakKeyDictionary[asyncio.Task, TransactionalSession] = (
+    WeakKeyDictionary()
 )
+
+
+def _get_task() -> asyncio.Task:
+    task = asyncio.current_task()
+    if task is None:
+        raise RuntimeError("No current asyncio task; cannot bind session")
+    return task
+
+
+def _on_task_done(task: asyncio.Task) -> None:
+    try:
+        _task_sessions.pop(task)
+    except RuntimeError:
+        pass
 
 
 class _BaseSessionContext:
     _session_factory: TransactionalSessionFactory
     _session: TransactionalSession | None
-    _ctx_token: Token[TransactionalSession | None] | None
 
     def __init__(self, session_factory: TransactionalSessionFactory) -> None:
         self._session_factory = session_factory
         self._session = None
-        self._ctx_token = None
 
     @property
     def _is_root(self) -> bool:
         return self._session is not None
 
     async def _get_or_create_session(self) -> TransactionalSession:
-        existing = _current_session.get()
+        task = _get_task()
+
+        existing = _task_sessions.get(task)
         if existing is not None:
             return existing
 
         self._session = self._session_factory()
-        self._ctx_token = _current_session.set(self._session)
+        _task_sessions[task] = self._session
+        task.add_done_callback(_on_task_done)
+
         return self._session
 
     async def _flush_if_not_root(self) -> None:
         if self._is_root:
             return
-        session = _current_session.get()
-        if session is None:
-            return
-        await session.flush()
+        task = _get_task()
+        session = _task_sessions.get(task)
+        if session is not None:
+            await session.flush()
 
     async def _close_session_if_root(self) -> None:
         if not self._is_root:
             return
 
-        if self._session:
-            await self._session.close()
-        if self._ctx_token:
-            _current_session.reset(self._ctx_token)
+        task = _get_task()
+
+        try:
+            if self._session:
+                await self._session.close()
+        finally:
+            _task_sessions.pop(task, None)
 
 
 class TransactionContext(_BaseSessionContext):

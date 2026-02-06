@@ -1,10 +1,16 @@
 from abc import abstractmethod
-from typing import Protocol
+from typing import Callable, Protocol
 
 
 class ITransactionalSession(Protocol):
     @abstractmethod
     async def flush(self) -> None: ...
+
+    @abstractmethod
+    def add_on_commit(self, cb: Callable[[], None]) -> None: ...
+
+    @abstractmethod
+    def remove_on_commit(self, cb: Callable[[], None]) -> None: ...
 
 
 class ITransactionContext(Protocol):
