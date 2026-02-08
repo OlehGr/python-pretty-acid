@@ -58,7 +58,7 @@ class _BaseSessionContext:
         if session is not None:
             await session.flush()
 
-    async def _close_session_if_root(self) -> None:
+    async def _close_and_clear_session_if_root(self) -> None:
         if not self._is_root:
             return
 
@@ -67,6 +67,7 @@ class _BaseSessionContext:
         try:
             if self._session:
                 await self._session.close()
+                self._session.clear_after_commit_callbacks()
         finally:
             _task_sessions.pop(task, None)
 
@@ -89,8 +90,9 @@ class TransactionContext(_BaseSessionContext):
                 await self._session.rollback()
             else:
                 await self._session.commit()
+                await self._session.execute_after_commit_callbacks()
         finally:
-            await self._close_session_if_root()
+            await self._close_and_clear_session_if_root()
 
 
 class SessionContext(_BaseSessionContext):
@@ -98,4 +100,4 @@ class SessionContext(_BaseSessionContext):
         return await self._get_or_create_session()
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
-        await self._close_session_if_root()
+        await self._close_and_clear_session_if_root()

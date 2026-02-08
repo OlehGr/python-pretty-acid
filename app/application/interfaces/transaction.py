@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Callable, Protocol
+from typing import Awaitable, Callable, Protocol
 
 
 class ITransactionalSession(Protocol):
@@ -7,10 +7,10 @@ class ITransactionalSession(Protocol):
     async def flush(self) -> None: ...
 
     @abstractmethod
-    def add_on_commit(self, cb: Callable[[], None]) -> None: ...
+    def add_async_after_commit(self, cb: Callable[[], Awaitable[None]]) -> None: ...
 
     @abstractmethod
-    def remove_on_commit(self, cb: Callable[[], None]) -> None: ...
+    def remove_async_after_commit(self, cb: Callable[[], Awaitable[None]]) -> None: ...
 
 
 class ITransactionContext(Protocol):

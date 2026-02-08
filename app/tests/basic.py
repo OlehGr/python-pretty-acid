@@ -38,6 +38,28 @@ def session_factory(di_container) -> TransactionalSessionFactory:
 
 
 class TestTransactionManagerUnit:
+    async def test_session_and_transaction_differ_in_sibling_contexts(
+        self, tm: TransactionManager
+    ):
+        """
+        Соседние контексты в рамках одной задачи создают разные независимые транзакции и сессии
+        """
+        prev_session = None
+
+        async with tm.session() as s1:
+            prev_session = s1
+
+        async with tm.session() as s2:
+            assert s2 is not prev_session
+
+        prev_transaction = None
+
+        async with tm.transaction() as t1:
+            prev_transaction = t1
+
+        async with tm.transaction() as t2:
+            assert t2 is not prev_transaction
+
     async def test_nested_session_shares_same_instance(self, tm: TransactionManager):
         """
         Вложенные контексты tm.session() при открытие не должны создавать новые сессии,
@@ -105,7 +127,7 @@ class TestTransactionManagerUnit:
         async with tm.transaction() as tx:
             await super_parent_method(tm, tx)
 
-    async def test_root_transaction_commit_persists(self, tm: TransactionManager):
+    async def test_root_transactiafter_commit_persists(self, tm: TransactionManager):
         """
         При завернении контекста транзакции выполняется коммит и даанные сохраняються в базе
         """
@@ -285,3 +307,44 @@ class TestTransactionManagerUnit:
             await asyncio.sleep(0.1)
 
         assert sessions[0] is not sessions[1]
+
+    async def test_session_after_commit_callbacks_execute_correct(
+        self,
+        tm: TransactionManager,
+    ):
+        """
+        Добавленные на коммит каллбэки выполняются последовательно в порядке их добавления перед комитом.
+        Каллбэк можно удалить, чтобы избежать выполнение. Каллбэк нелязя добавить дважды.
+        """
+
+        numbers: list[int] = []
+
+        async def add_one():
+            numbers.append(1)
+
+        async def add_two():
+            numbers.append(2)
+
+        async def add_three():
+            numbers.append(3)
+
+        async with tm.session() as s:
+            s.add_async_after_commit(add_one)
+            s.add_async_after_commit(add_two)
+            s.add_async_after_commit(add_three)
+
+        assert not len(numbers)
+
+        async with tm.transaction() as tx:
+            tx.add_async_after_commit(add_one)
+            tx.add_async_after_commit(add_one)
+            tx.add_async_after_commit(add_two)
+            tx.add_async_after_commit(add_three)
+
+            assert not len(numbers)
+
+            tx.remove_async_after_commit(add_three)
+
+        assert len(numbers) == 2
+        assert numbers[0] == 1
+        assert numbers[1] == 2
