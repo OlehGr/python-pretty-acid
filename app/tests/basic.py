@@ -127,9 +127,9 @@ class TestTransactionManagerUnit:
         async with tm.transaction() as tx:
             await super_parent_method(tm, tx)
 
-    async def test_root_transactiafter_commit_persists(self, tm: TransactionManager):
+    async def test_root_transaction_after_commit_persists(self, tm: TransactionManager):
         """
-        При завернении контекста транзакции выполняется коммит и даанные сохраняються в базе
+        При завершении контекста транзакции выполняется комит и данные сохраняются в базе
         """
 
         user = User.create(name="Bob")
@@ -148,24 +148,24 @@ class TestTransactionManagerUnit:
         а данные не должны быть сохранены
         """
 
-        tx_which_wiil_be_closed = None
+        tx_which_will_be_closed = None
 
         user = User.create(name="Bob")
 
         with pytest.raises(RuntimeError):
             async with tm.transaction() as tx:
-                tx_which_wiil_be_closed = tx
+                tx_which_will_be_closed = tx
                 await tx.merge(user)
                 raise RuntimeError("BOOM!")
 
-        assert tx_which_wiil_be_closed
-        assert tx_which_wiil_be_closed.get_transaction() is None
+        assert tx_which_will_be_closed
+        assert tx_which_will_be_closed.get_transaction() is None
 
         async with tm.session() as s:
-            unexist_user = await s.get(User, user.id)
-            assert unexist_user is None
+            do_not_exist_user = await s.get(User, user.id)
+            assert do_not_exist_user is None
 
-    async def test_root_transaction_rollback_on_exception_in_subcontext(
+    async def test_root_transaction_rollback_on_exception_in_sub_context(
         self, tm: TransactionManager
     ):
         """
@@ -174,14 +174,14 @@ class TestTransactionManagerUnit:
         успешных контекстах
         """
 
-        tx_which_wiil_be_closed = None
+        tx_which_will_be_closed = None
 
         good_user = User.create(name="Good Bob")
         bad_user = User.create(name="Bad Bob")
 
         with pytest.raises(RuntimeError):
             async with tm.transaction() as tx1:
-                tx_which_wiil_be_closed = tx1
+                tx_which_will_be_closed = tx1
 
                 async with tm.transaction() as tx2:
                     good_user = User.create(name="Bob")
@@ -192,8 +192,8 @@ class TestTransactionManagerUnit:
                     await tx3.merge(bad_user)
                     raise RuntimeError("BOOM!")
 
-        assert tx_which_wiil_be_closed
-        assert tx_which_wiil_be_closed.get_transaction() is None
+        assert tx_which_will_be_closed
+        assert tx_which_will_be_closed.get_transaction() is None
 
         async with tm.session() as s:
             assert await s.get(User, good_user.id) is None
@@ -237,7 +237,7 @@ class TestTransactionManagerUnit:
         self, tm, monkeypatch
     ):
         """
-        При возникновении исключения дочерний контексттранзакции не дожен вызвать .flush()
+        При возникновении исключения дочерний контекст транзакции не должен вызвать .flush()
         """
         calls = {"flush": 0}
 
@@ -271,7 +271,7 @@ class TestTransactionManagerUnit:
 
     async def test_concurrent_tasks_do_not_share_session(self, tm: TransactionManager):
         """
-        Паралельные асинхронные операции, работая с одним и тем же экземпляром TransactionManager,
+        Параллельные асинхронные операции, работая с одним и тем же экземпляром TransactionManager,
         не должны шарить между собой сессии
         """
         sessions = []
@@ -313,8 +313,8 @@ class TestTransactionManagerUnit:
         tm: TransactionManager,
     ):
         """
-        Добавленные на коммит каллбэки выполняются последовательно в порядке их добавления перед комитом.
-        Каллбэк можно удалить, чтобы избежать выполнение. Каллбэк нелязя добавить дважды.
+        Добавленные на комит каллбэки выполняются последовательно в порядке их добавления перед комитом.
+        Каллбэк можно удалить, чтобы избежать выполнение. Каллбэк нельзя добавить дважды.
         """
 
         numbers: list[int] = []
