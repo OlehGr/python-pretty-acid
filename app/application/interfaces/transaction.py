@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Awaitable, Callable, Protocol
+from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 
 class ITransactionalSession(Protocol):

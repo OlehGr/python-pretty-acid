@@ -1,6 +1,5 @@
 from app.application.interfaces.transaction import ITransactionManager
 from app.infrastructure.database.transaction.session import TransactionalSessionFactory
-
 from .context import SessionContext, TransactionContext
 
 

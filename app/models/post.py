@@ -16,7 +16,10 @@ class Post(BaseModel):
     @classmethod
     def create(cls, *, text: str, user_id: uuid.UUID) -> "Post":
         return Post(
-            **cls.gen_base_properties(), text=text, user_id=user_id, attachments_count=0
+            **cls.gen_base_properties(),
+            text=text,
+            user_id=user_id,
+            attachments_count=0,
         )
 
     def _on_update(self) -> None:

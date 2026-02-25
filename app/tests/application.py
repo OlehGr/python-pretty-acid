@@ -12,13 +12,14 @@ from app.infrastructure.database.transaction import (
 from app.models import Post, PostAttachment, User
 from app.providers import ApplicationProvider, DatabaseProvider, InfrastructureProvider
 
+
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
 def di():
     di = make_container(
-        DatabaseProvider(), InfrastructureProvider(), ApplicationProvider()
+        DatabaseProvider(), InfrastructureProvider(), ApplicationProvider(),
     )
     yield di
     di.close()
@@ -26,11 +27,9 @@ def di():
 
 class TestApplication:
     async def test_create_post_integration_on_sucess(self, di: Container):
-        """
-        Сервисы корректно работают, используя TransactionManager.
+        """Сервисы корректно работают, используя TransactionManager.
         Все данные сохраняються в БД
         """
-
         tm = di.get(TransactionManager)
         user_service = di.get(UserService)
         post_service = di.get(PostService)
@@ -68,10 +67,8 @@ class TestApplication:
         await self._assert_no_stuck_transactions(di)
 
     async def test_create_post_integration_on_fail(self, di: Container):
+        """При возникновении ошибки все данные не сохраняються
         """
-        При возникновении ошибки все данные не сохраняються
-        """
-
         tm = di.get(TransactionManager)
         user_service = di.get(UserService)
         post_service = di.get(PostService)
@@ -118,6 +115,6 @@ class TestApplication:
                         WHERE datname = '{DB_NAME}'
                             AND pid <> pg_backend_pid()
                             AND state IN ('idle in transaction', 'idle in transaction (aborted)')
-                    """)
+                    """),
             )
             assert stuck_tx_count == 0

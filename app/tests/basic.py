@@ -12,6 +12,7 @@ from app.infrastructure.database.transaction import (
 from app.models import User
 from app.providers import DatabaseProvider
 
+
 pytestmark = pytest.mark.asyncio
 
 
@@ -39,11 +40,10 @@ def session_factory(di_container) -> TransactionalSessionFactory:
 
 class TestTransactionManagerUnit:
     async def test_session_and_transaction_differ_in_sibling_contexts(
-        self, tm: TransactionManager
+        self,
+        tm: TransactionManager,
     ):
-        """
-        Соседние контексты в рамках одной задачи создают разные независимые транзакции и сессии
-        """
+        """Соседние контексты в рамках одной задачи создают разные независимые транзакции и сессии"""
         prev_session = None
 
         async with tm.session() as s1:
@@ -61,65 +61,65 @@ class TestTransactionManagerUnit:
             assert t2 is not prev_transaction
 
     async def test_nested_session_shares_same_instance(self, tm: TransactionManager):
-        """
-        Вложенные контексты tm.session() при открытие не должны создавать новые сессии,
+        """Вложенные контексты tm.session() при открытие не должны создавать новые сессии,
         а должны использовать ту же сессию, которую создал корневой (родительский) контекст
         при этом не открывая транзакцию:
         s1 = s2 = s3 = s4
         .in_transaction() -> False
         """
         async with tm.session() as s1:
-            async with tm.session() as s2:
-                async with tm.session() as s3:
-                    assert s1 is s2
-                    assert s2 is s3
+            async with tm.session() as s2, tm.session() as s3:
+                assert s1 is s2
+                assert s2 is s3
 
             async with tm.session() as s4:
                 assert s1 is s4
                 assert s4.in_transaction() is False
 
     async def test_nested_transaction_shares_same_instance(
-        self, tm: TransactionManager
+        self,
+        tm: TransactionManager,
     ):
-        """
-        Вложенные контексты tm.transaction() при открытие не должны создавать новые сессии
+        """Вложенные контексты tm.transaction() при открытие не должны создавать новые сессии
         и открывать транзакцию, а должны использовать ту же сессию, которую создал корневой (родительский) контекст
         при этом транзакция открыта
         t1 = t2 = t3 = t4
         .in_transaction() -> True
         """
         async with tm.transaction() as t1:
-            async with tm.transaction() as t2:
-                async with tm.transaction() as t3:
-                    assert t1 is t2
-                    assert t2 is t3
+            async with tm.transaction() as t2, tm.transaction() as t3:
+                assert t1 is t2
+                assert t2 is t3
 
             async with tm.transaction() as t4:
                 assert t1 is t4
                 assert t4.in_transaction()
 
     async def test_nested_transaction_sharing_in_separate_func_calls(
-        self, tm: TransactionManager
+        self,
+        tm: TransactionManager,
     ):
-        """
-        Вложенные контексты при вызове внутри других функций должны использовать
+        """Вложенные контексты при вызове внутри других функций должны использовать
         сессию контекста, открытого в коде, который вызвал эти функции.
         """
 
         async def sub_method_with_transaction(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager,
+            parent_session: TransactionalSession,
         ):
             async with manager.transaction() as tx:
                 assert tx is parent_session
 
         async def sub_method_with_session(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager,
+            parent_session: TransactionalSession,
         ):
             async with manager.session() as s:
                 assert s is parent_session
 
         async def super_parent_method(
-            manager: TransactionManager, parent_session: TransactionalSession
+            manager: TransactionManager,
+            parent_session: TransactionalSession,
         ):
             await sub_method_with_transaction(manager, parent_session)
             await sub_method_with_session(manager, parent_session)
@@ -128,10 +128,7 @@ class TestTransactionManagerUnit:
             await super_parent_method(tm, tx)
 
     async def test_root_transaction_after_commit_persists(self, tm: TransactionManager):
-        """
-        При завершении контекста транзакции выполняется комит и данные сохраняются в базе
-        """
-
+        """При завершении контекста транзакции выполняется комит и данные сохраняются в базе"""
         user = User.create(name="Bob")
 
         async with tm.transaction() as tx:
@@ -143,11 +140,9 @@ class TestTransactionManagerUnit:
             assert exits_user.name == "Bob"
 
     async def test_root_transaction_rollback_on_exception(self, tm: TransactionManager):
-        """
-        При исключении в контексте транзакции, должен произойти .rollback(),
+        """При исключении в контексте транзакции, должен произойти .rollback(),
         а данные не должны быть сохранены
         """
-
         tx_which_will_be_closed = None
 
         user = User.create(name="Bob")
@@ -166,14 +161,13 @@ class TestTransactionManagerUnit:
             assert do_not_exist_user is None
 
     async def test_root_transaction_rollback_on_exception_in_sub_context(
-        self, tm: TransactionManager
+        self,
+        tm: TransactionManager,
     ):
-        """
-        При исключении в дочернем контексте транзакции, должен произойти .rollback(),
+        """При исключении в дочернем контексте транзакции, должен произойти .rollback(),
         а данные не должны быть сохранены, в том числе те которые были записаны в соседних
         успешных контекстах
         """
-
         tx_which_will_be_closed = None
 
         good_user = User.create(name="Good Bob")
@@ -200,13 +194,13 @@ class TestTransactionManagerUnit:
             assert await s.get(User, bad_user.id) is None
 
     async def test_nested_transaction_calls_flush_on_success(
-        self, tm: TransactionManager, monkeypatch
+        self,
+        tm: TransactionManager,
+        monkeypatch,
     ):
-        """
-        При завершении дочернии контексты вызывают .flush()
+        """При завершении дочернии контексты вызывают .flush()
         для промежуточного сохранения данных в случае чтения незакомиченных данных в рамках активной транзакции
         """
-
         fantom_user = User.create(name="Fantom Bob")
 
         calls = {"flush": 0}
@@ -234,11 +228,11 @@ class TestTransactionManagerUnit:
         assert calls["flush"] == 2
 
     async def test_nested_transaction_does_not_flush_on_exception(
-        self, tm, monkeypatch
+        self,
+        tm,
+        monkeypatch,
     ):
-        """
-        При возникновении исключения дочерний контекст транзакции не должен вызвать .flush()
-        """
+        """При возникновении исключения дочерний контекст транзакции не должен вызвать .flush()"""
         calls = {"flush": 0}
 
         with pytest.raises(RuntimeError):
@@ -252,15 +246,12 @@ class TestTransactionManagerUnit:
                 monkeypatch.setattr(root_tx, "flush", fake_flush)
 
                 async with tm.transaction():
-                    raise RuntimeError()
+                    raise RuntimeError
 
         assert calls["flush"] == 0
 
     async def test_session_context_does_not_commit(self, tm: TransactionManager):
-        """
-        Контекст сессии НЕ должен начинать / завершать транзакцию ( .begin() / .commit() )
-        """
-
+        """Контекст сессии НЕ должен начинать / завершать транзакцию ( .begin() / .commit() )"""
         user = User.create(name="no-commit")
 
         async with tm.session() as s:
@@ -270,26 +261,25 @@ class TestTransactionManagerUnit:
             assert await s.get(User, user.id) is None
 
     async def test_concurrent_tasks_do_not_share_session(self, tm: TransactionManager):
-        """
-        Параллельные асинхронные операции, работая с одним и тем же экземпляром TransactionManager,
+        """Параллельные асинхронные операции, работая с одним и тем же экземпляром TransactionManager,
         не должны шарить между собой сессии
         """
         sessions = []
 
         async def worker():
-            async with tm.transaction() as s:
-                async with tm.transaction() as s:
-                    sessions.append(s)
-                    await asyncio.sleep(0.1)
+            async with tm.transaction() as s, tm.transaction() as s:
+                sessions.append(s)
+                await asyncio.sleep(0.1)
 
         await asyncio.gather(worker(), worker())
         assert sessions[0] is not sessions[1]
 
     async def test_sub_create_tasks_do_not_share_session(
-        self, tm: TransactionManager, background_executor: BackgroundExecutor
+        self,
+        tm: TransactionManager,
+        background_executor: BackgroundExecutor,
     ):
-        """
-        При создание дочерней async task (loop.create_task) и открытия в ней сессии  TransactionManager-а
+        """При создание дочерней async task (loop.create_task) и открытия в ней сессии  TransactionManager-а
         сессия не должна шарится между родительской и дочерней задачами
         """
         sessions = []
@@ -312,11 +302,9 @@ class TestTransactionManagerUnit:
         self,
         tm: TransactionManager,
     ):
-        """
-        Добавленные на комит каллбэки выполняются последовательно в порядке их добавления перед комитом.
+        """Добавленные на комит каллбэки выполняются последовательно в порядке их добавления перед комитом.
         Каллбэк можно удалить, чтобы избежать выполнение. Каллбэк нельзя добавить дважды.
         """
-
         numbers: list[int] = []
 
         async def add_one():
@@ -333,7 +321,7 @@ class TestTransactionManagerUnit:
             s.add_async_after_commit(add_two)
             s.add_async_after_commit(add_three)
 
-        assert not len(numbers)
+        assert not numbers
 
         async with tm.transaction() as tx:
             tx.add_async_after_commit(add_one)
@@ -341,7 +329,7 @@ class TestTransactionManagerUnit:
             tx.add_async_after_commit(add_two)
             tx.add_async_after_commit(add_three)
 
-            assert not len(numbers)
+            assert not numbers
 
             tx.remove_async_after_commit(add_three)
 

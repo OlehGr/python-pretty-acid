@@ -17,7 +17,7 @@ class PostAttachment(BaseModel):
     def create(cls, *, file_url: str, post_id: uuid.UUID) -> "PostAttachment":
         cls.validate_file_url(file_url)
         return PostAttachment(
-            **cls.gen_base_properties(), file_url=file_url, post_id=post_id
+            **cls.gen_base_properties(), file_url=file_url, post_id=post_id,
         )
 
     @staticmethod

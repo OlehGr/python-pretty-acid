@@ -16,7 +16,7 @@ class PostattachmentService:
     _post_repository: IPostRepository
 
     async def create_attachments(
-        self, file_urls: list[str], post_id: uuid.UUID
+        self, file_urls: list[str], post_id: uuid.UUID,
     ) -> list[uuid.UUID]:
         async with self._tm.transaction():
             post_attachments = [

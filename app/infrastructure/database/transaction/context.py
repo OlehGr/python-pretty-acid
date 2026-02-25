@@ -1,10 +1,12 @@
 import asyncio
+import contextlib
 from weakref import WeakKeyDictionary
 
 from app.infrastructure.database.transaction.session import (
     TransactionalSession,
     TransactionalSessionFactory,
 )
+
 
 _task_sessions: WeakKeyDictionary[asyncio.Task, TransactionalSession] = (
     WeakKeyDictionary()
@@ -19,10 +21,8 @@ def _get_task() -> asyncio.Task:
 
 
 def _on_task_done(task: asyncio.Task) -> None:
-    try:
+    with contextlib.suppress(RuntimeError):
         _task_sessions.pop(task)
-    except RuntimeError:
-        pass
 
 
 class _BaseSessionContext:

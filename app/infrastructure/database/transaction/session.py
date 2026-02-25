@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -9,7 +9,7 @@ class TransactionalSession(AsyncSession, ITransactionalSession):
     _callbacks_set_after_commit: set[Callable[[], Awaitable[None]]]
     _callbacks_after_commit: list[Callable[[], Awaitable[None]]]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._callbacks_set_after_commit = set()
         self._callbacks_after_commit = []

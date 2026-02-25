@@ -32,10 +32,9 @@ class DatabaseProvider(Provider):
 
     @provide
     def engine(self) -> AsyncEngine:
-        engine = create_async_engine(
+        return create_async_engine(
             DATABASE_URL,
         )
-        return engine
 
     @provide
     def session_factory(self, engine: AsyncEngine) -> TransactionalSessionFactory:
@@ -56,7 +55,8 @@ class InfrastructureProvider(Provider):
     user_repository = provide(UserRepository, provides=IUserRepository)
     post_repository = provide(PostRepository, provides=IPostRepository)
     post_attachment_repository = provide(
-        PostAttachmentRepository, provides=IPostAttachmentRepository
+        PostAttachmentRepository,
+        provides=IPostAttachmentRepository,
     )
 
 

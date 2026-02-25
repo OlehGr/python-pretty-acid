@@ -25,7 +25,53 @@ testpaths = [
 ]
 
 [tool.ruff]
-exclude = ["migrations"]
+exclude = [
+    "**/migrations",
+    "app/tests/*"
+]
+
+
+[tool.ruff.lint]
+select = ['ALL']
+ignore = [
+    "EM",
+    "FBT",
+    "TRY003",
+    "D1",
+    "D203",
+    "D213",
+    "G004",
+    "FA",
+    "COM812",
+    "ISC001",
+    "PLR0913",
+    "A005",
+    "S104",
+    "DTZ005",
+    "B008",
+    "B904",
+    "UP007",
+    "RUF006",
+    'PGH003',
+    "C901",
+    "PLR0912",
+    "RUF001",
+    "DTZ003",
+    "BLE001",
+    "PLR0915",
+    "PLR0911",
+    "ANN003",
+    "ANN002",
+    "ANN001",
+]
+isort.lines-after-imports = 2
+isort.no-lines-before = ["standard-library", "local-folder"]
+
+
+[tool.ty.src]
+exclude = [
+    "**/migrations",
+]
 
 [tool.mypy]
 python_version = "3.12"
