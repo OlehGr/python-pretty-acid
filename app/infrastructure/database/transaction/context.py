@@ -2,34 +2,30 @@ import asyncio
 import contextlib
 from weakref import WeakKeyDictionary
 
-from app.infrastructure.database.transaction.session import (
+from .session import (
     TransactionalSession,
     TransactionalSessionFactory,
 )
 
 
-_task_sessions: WeakKeyDictionary[asyncio.Task, TransactionalSession] = (
-    WeakKeyDictionary()
-)
-
-
-def _get_task() -> asyncio.Task:
+def _get_current_task() -> asyncio.Task:
     task = asyncio.current_task()
     if task is None:
         raise RuntimeError("No current asyncio task; cannot bind session")
     return task
 
 
-def _on_task_done(task: asyncio.Task) -> None:
-    with contextlib.suppress(RuntimeError):
-        _task_sessions.pop(task)
-
-
 class _BaseSessionContext:
     _session_factory: TransactionalSessionFactory
     _session: TransactionalSession | None
+    _task_sessions: WeakKeyDictionary[asyncio.Task, TransactionalSession]
 
-    def __init__(self, session_factory: TransactionalSessionFactory) -> None:
+    def __init__(
+        self,
+        session_factory: TransactionalSessionFactory,
+        task_sessions: WeakKeyDictionary[asyncio.Task, TransactionalSession],
+    ) -> None:
+        self._task_sessions = task_sessions
         self._session_factory = session_factory
         self._session = None
 
@@ -38,23 +34,23 @@ class _BaseSessionContext:
         return self._session is not None
 
     async def _get_or_create_session(self) -> TransactionalSession:
-        task = _get_task()
+        task = _get_current_task()
 
-        existing = _task_sessions.get(task)
+        existing = self._task_sessions.get(task)
         if existing is not None:
             return existing
 
         self._session = self._session_factory()
-        _task_sessions[task] = self._session
-        task.add_done_callback(_on_task_done)
+        self._task_sessions[task] = self._session
+        task.add_done_callback(self._on_task_done)
 
         return self._session
 
     async def _flush_if_not_root(self) -> None:
         if self._is_root:
             return
-        task = _get_task()
-        session = _task_sessions.get(task)
+        task = _get_current_task()
+        session = self._task_sessions.get(task)
         if session is not None:
             await session.flush()
 
@@ -62,14 +58,18 @@ class _BaseSessionContext:
         if not self._is_root:
             return
 
-        task = _get_task()
+        task = _get_current_task()
 
         try:
             if self._session:
                 await self._session.close()
                 self._session.clear_after_commit_callbacks()
         finally:
-            _task_sessions.pop(task, None)
+            self._task_sessions.pop(task, None)
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        with contextlib.suppress(RuntimeError):
+            self._task_sessions.pop(task)
 
 
 class TransactionContext(_BaseSessionContext):
